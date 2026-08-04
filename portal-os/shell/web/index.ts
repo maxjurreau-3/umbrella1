@@ -1,74 +1,74 @@
 // portal-os/shell/web/index.ts
-// Portal-OS shell web entrypoint — now integrated with runtime/bootstrap.
+// Express-based Portal-OS shell entrypoint. Starts the boot sequence and exposes status endpoints.
 // Run with: ts-node portal-os/shell/web/index.ts
 
-import * as http from "http";
-import { boot, shutdown as runtimeShutdown } from "../../runtime/bootstrap";
+import express from "express";
+import { boot, shutdown as runtimeShutdown } from "../../runtime/bootstrap/boot";
 import { SystemState } from "../../runtime/types";
+import { listSuites } from "../../runtime/services/registry";
 
+const app = express();
 let state: SystemState | null = null;
-let httpServer: http.Server | null = null;
+let server: ReturnType<typeof app.listen> | null = null;
 
-function startWebShell(port = 3000) {
-  console.log(new Date().toISOString(), "|", "SHELL: starting web server on port", port);
-  if (!state) state = {
-    kernel: "stopped",
-    runtime: "stopped",
-    services: "stopped",
-    shell: "stopped",
-  };
+app.get("/status", (req, res) => {
+  res.json(state || { error: "not booted" });
+});
 
-  httpServer = http.createServer((req, res) => {
-    if (req.url === "/status") {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify(state, null, 2));
-      return;
-    }
+app.get("/suites", (req, res) => {
+  try {
+    const suites = listSuites();
+    res.json(suites);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
 
-    res.writeHead(200, { "Content-Type": "text/html" });
-    res.end(`
-      <!doctype html>
-      <html>
+app.get("/", (req, res) => {
+  res.type("html").send(`
+    <!doctype html>
+    <html>
       <head>
         <meta charset=\"utf-8\">
-        <title>Portal-OS Shell</title>
+        <title>Portal-OS Shell (Express)</title>
         <style>body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:20px}</style>
       </head>
       <body>
-        <h1>Portal-OS Shell</h1>
-        <p>Boot sequence status:</p>
+        <h1>Portal-OS Shell (Express)</h1>
+        <p>Visit <a href=\"/status\">/status</a> for system state JSON.</p>
+        <p>Visit <a href=\"/suites\">/suites</a> for registered suites.</p>
         <pre>${JSON.stringify(state, null, 2)}</pre>
-        <p>Endpoint: <a href=\"/status\">/status</a></p>
       </body>
-      </html>
-    `);
-  });
+    </html>
+  `);
+});
 
-  httpServer.on("listening", () => {
-    if (state) state.shell = "running";
-    console.log(new Date().toISOString(), "|", "SHELL: web server listening");
-  });
-
-  httpServer.on("error", (err) => {
-    if (state) state.shell = "failed";
-    console.log(new Date().toISOString(), "|", "SHELL: web server error", err);
-  });
-
-  httpServer.listen(port);
+async function start() {
+  try {
+    state = await boot();
+    const port = process.env.PORT ? Number(process.env.PORT) : 3000;
+    server = app.listen(port, () => {
+      if (state) state.shell = "running";
+      console.log(new Date().toISOString(), "|", `SHELL: Express server listening on port ${port}`);
+    });
+  } catch (e) {
+    console.error(new Date().toISOString(), "|", "Boot failed:", e);
+    process.exit(1);
+  }
 }
 
 async function shutdown() {
   console.log(new Date().toISOString(), "|", "SHELL: shutdown requested");
   try {
-    if (httpServer) {
+    if (server) {
       if (state) state.shell = "stopping";
-      httpServer.close(() => console.log(new Date().toISOString(), "|", "SHELL: server stopped"));
+      server.close(() => console.log(new Date().toISOString(), "|", "SHELL: server stopped"));
     }
     if (state) await runtimeShutdown(state);
     console.log(new Date().toISOString(), "|", "SHELL: shutdown complete");
     process.exit(0);
   } catch (e) {
-    console.log(new Date().toISOString(), "|", "SHELL: shutdown error", e);
+    console.error(new Date().toISOString(), "|", "SHELL: shutdown error", e);
     process.exit(1);
   }
 }
@@ -82,14 +82,4 @@ process.on("SIGTERM", () => {
   shutdown();
 });
 
-(async function main() {
-  try {
-    state = await boot();
-    const port = process.env.PORT ? Number(process.env.PORT) : 3000;
-    startWebShell(port);
-    console.log(new Date().toISOString(), "|", "Boot: Portal-OS is up. Visit http://localhost:" + (process.env.PORT || 3000));
-  } catch (e) {
-    console.log(new Date().toISOString(), "|", "Boot failed:", e);
-    process.exit(1);
-  }
-})();
+start();
