@@ -1,6 +1,7 @@
 {
   "name": "umbrella-os",
   "version": "0.0.1",
+  "description": "Multi-layer OS: SIM builder engine, Portal-OS runtime, Substrate compute, Governance rules, Infra deployment",
   "private": true,
   "workspaces": [
     "sim",
@@ -16,6 +17,20 @@
     "test": "jest",
     "lint": "eslint . --ext .ts,.tsx"
   },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "os",
+    "kernel",
+    "runtime",
+    "builder",
+    "cognitive",
+    "substrate",
+    "governance"
+  ],
+  "author": "",
+  "license": "MIT",
   "devDependencies": {
     "typescript": "^5.0.0",
     "ts-node": "^10.9.1"
