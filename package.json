@@ -12,13 +12,18 @@
   ],
   "scripts": {
     "dev": "nodemon portal-os/shell/web/index.ts",
-    "build": "tsc -p .",
+    "build": "npx tsc -p .",
     "start": "node dist/portal-os/shell/web/index.js",
     "test": "jest",
     "lint": "eslint . --ext .ts,.tsx"
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "ts-node": "^10.9.1"
   },
   "keywords": [
     "os",
@@ -30,9 +35,5 @@
     "governance"
   ],
   "author": "",
-  "license": "MIT",
-  "devDependencies": {
-    "typescript": "^5.0.0",
-    "ts-node": "^10.9.1"
-  }
+  "license": "MIT"
 }
